@@ -10,6 +10,7 @@ import javax.persistence.*;
 import java.io.Serializable;
 import java.security.PrivateKey;
 import java.util.Date;
+import java.util.Objects;
 
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener.class)
@@ -26,17 +27,12 @@ public abstract class Auditable implements Serializable {
     }
 
     @Override
-    public boolean equals(Object obj) {
-        if (this==obj) return true;
-        if(!this.getClass().equals(obj.getClass())) return false;
-        if(obj instanceof Auditable){
-            Auditable auditable = (Auditable) obj;
-            if( id==null && obj==null) return true;
-            if(id==null || obj==null) return false;
-            return id==((Auditable)obj).id;
-        }
-        else
-            return super.equals(obj);
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Auditable auditable = (Auditable) o;
+        if (id == null || auditable.id == null) return false;
+        return id.equals(auditable.id);
     }
 
     @Column(updatable = false)
