@@ -5,7 +5,9 @@ import lombok.*;
 
 import javax.persistence.*;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Getter
@@ -21,6 +23,8 @@ public class Driver extends Auditable{
     private Gender gender;
     private String  name;
 
+    private String phoneNumber;
+
     @OneToOne(mappedBy = "driver")
     private Car car;
 
@@ -34,6 +38,13 @@ public class Driver extends Auditable{
 
     @OneToMany(mappedBy = "driver")
     private List<Booking> bookings;
+
+    @ManyToMany(mappedBy = "notifiedDrivers", cascade = CascadeType.PERSIST)
+    private Set<Booking> acceptableBookings = new HashSet<>(); // bookings that the driver can currently accept
+
+    @OneToOne
+    private Booking activeBooking = null;  // driver.active_booking_id  either be null or be a foreign key
+
 
     private Boolean isAvailable;
 
@@ -49,5 +60,12 @@ public class Driver extends Auditable{
         if(available && !driverApprovalStatus.equals(DriverApprovalStatus.APPROVED))
             throw new UnapprovedDriverException("Driver approval pending or denied "+getId());
         isAvailable = available;
+    }
+    public boolean canAcceptBooking(int maxWaitTimeForPreviousRide) {
+        if (isAvailable && activeBooking == null) {
+            return true;
+        }
+        return activeBooking.getExpectedCompletionTime().before(
+                DateUtils.addMinutes(new Date(), maxWaitTimeForPreviousRide));
     }
 }

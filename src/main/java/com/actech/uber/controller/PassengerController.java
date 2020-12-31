@@ -7,9 +7,11 @@ import com.actech.uber.repositories.BookingRepository;
 import com.actech.uber.repositories.PassengerRepository;
 import com.actech.uber.repositories.ReviewRepository;
 import com.actech.uber.services.BookingService;
+import com.actech.uber.services.Constants;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -24,6 +26,8 @@ public class PassengerController {
     ReviewRepository reviewRepository;
     @Autowired
     BookingService bookingService;
+    @Autowired
+    Constants constants;
 
     public Passenger getPassengerFromId(Long passengerId){
         Optional<Passenger> passenger = passengerRepository.findById(passengerId);
@@ -64,25 +68,51 @@ public class PassengerController {
     @PostMapping("{passengerId}/bookings/")
     public void requestBooking(@RequestParam(name = "passengerId") Long passengerId, @RequestBody Booking data){
         Passenger passenger = getPassengerFromId(passengerId);
+        List<ExactLocation> route = new ArrayList<>();
+        data.getRoute().forEach(location ->{
+            route.add(ExactLocation.builder()
+                    .latitude(location.getLatitude())
+                    .longitude(location.getLongitude())
+                    .build());
+        });
         Booking booking = Booking.builder()
+                .rideStartOTP(OTP.make(passenger.getPhone()))
+                .route(route)
+                .passenger(passenger)
+                .bookingType(data.getBookingType())
                 .build();
-        bookingRepository.save(booking);
-        passengerRepository.save(passenger);
-        bookingService.createBooking(booking, passenger);
+
+        bookingService.createBooking(booking);
+    }
+
+    @PatchMapping("{passengerId}/bookings/{bookingId}")
+    public void updateRoute(@PathVariable(name = "passengerId") Long passengerId,
+                            @PathVariable(name = "bookingId") Long bookingId,
+                            @RequestBody Booking data) {
+        Passenger passenger = getPassengerFromId(passengerId);
+        Booking booking = getPassengerBookingFromId(bookingId, passenger);
+        List<ExactLocation> route = new ArrayList<>(booking.getCompletedRoute());
+        data.getRoute().forEach(location -> {
+            route.add(ExactLocation.builder()
+                    .latitude(location.getLatitude())
+                    .longitude(location.getLongitude())
+                    .build());
+        });
+        bookingService.updateRoute(booking, route);
     }
 
     @DeleteMapping("{passengerId}/bookings/{bookingId}")
     public void cancelBooking(@RequestParam(name = "passengerId") Long passengerId, @RequestParam(name = "bookingId") Long bookingId){
         Passenger passenger = getPassengerFromId(passengerId);
         Booking booking = getPassengerBookingFromId(bookingId, passenger);
-        bookingService.cancelByPassenger(booking, passenger);
+        bookingService.cancelByPassenger(passenger, booking);
     }
 
     @PatchMapping("{passengerId}/bookings/{bookingId}/start")
     public void startRide(@RequestParam(name = "passengerId") Long passengerId, @RequestParam(name = "bookingId") Long bookingId, @RequestBody OTP otp){
         Passenger passenger = getPassengerFromId(passengerId);
         Booking booking = getPassengerBookingFromId(bookingId, passenger);
-        booking.startRide(otp);
+        booking.startRide(otp, constants.getRideStartOTPExpiryMinutes());
         bookingRepository.save(booking);
     }
 

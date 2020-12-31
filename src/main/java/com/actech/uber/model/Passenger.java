@@ -19,8 +19,11 @@ public class Passenger extends Auditable{
     private Account account;
 
     private String name;
+
     @Enumerated(value = EnumType.STRING)
     private Gender gender;
+
+    private String phoneNumber;
 
     @OneToMany(mappedBy = "passenger")
     private List<Booking> bookings = new ArrayList<>();

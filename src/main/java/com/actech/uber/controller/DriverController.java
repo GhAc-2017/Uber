@@ -10,7 +10,7 @@ import com.actech.uber.repositories.BookingRepository;
 import com.actech.uber.repositories.DriverRepository;
 import com.actech.uber.repositories.ReviewRepository;
 import com.actech.uber.services.BookingService;
-import com.actech.uber.services.DriverMatchingService;
+import com.actech.uber.services.Constants;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,9 +26,10 @@ public class DriverController {
     BookingRepository bookingRepository;
     @Autowired
     ReviewRepository reviewRepository;
-
     @Autowired
     BookingService bookingService;
+    @Autowired
+    Constants constants;
 
     public Driver getDriverFromId(Long driverId){
         Optional<Driver> driver = driverRepository.findById(driverId);
@@ -49,7 +50,7 @@ public class DriverController {
     }
 
     @GetMapping("/{driverId}")
-    public Driver getDriverDetails(@RequestParam(name = "driverId") Long driverId){
+    public Driver getDriverDetails(@PathVariable(name = "driverId") Long driverId){
         return getDriverFromId(driverId);
     }
 
@@ -77,7 +78,7 @@ public class DriverController {
     public void acceptBooking(@RequestParam(name = "driverId") Long driverId, @RequestParam(name = "bookingId") Long bookingId){
         Driver driver = getDriverFromId(driverId);
         Booking booking = getDriverBookingFromId(bookingId, driver);
-        bookingService.acceptBooking(booking, driver);
+        bookingService.acceptBooking(driver, booking);
     }
 
     @DeleteMapping("{driverId}/bookings/{bookingId}")
@@ -91,7 +92,7 @@ public class DriverController {
     public void startRide(@RequestParam(name = "driverId") Long driverId, @RequestParam(name = "bookingId") Long bookingId, @RequestBody OTP otp){
         Driver driver = getDriverFromId(driverId);
         Booking booking = getDriverBookingFromId(bookingId, driver);
-        booking.startRide(otp);
+        booking.startRide(otp, constants.getRideStartOTPExpiryMinutes());
         bookingRepository.save(booking);
     }
 

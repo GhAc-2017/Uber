@@ -20,7 +20,14 @@ public class OTP extends Auditable{
 
     private Date expiryTime;
 
-    public boolean validateOTP(OTP otp, Long rideStartOtpExpiryMinutes) {
+    public static OTP make(String phoneNumber) {
+        return OTP.builder()
+                .code("0000") // random number generator
+                .sendToNumber(phoneNumber)
+                .build();
+    }
+
+    public boolean validateOTP(OTP otp, int rideStartOtpExpiryMinutes) {
         if(!code.equals(otp.getCode()))
             return false;
         //check otp expiry then

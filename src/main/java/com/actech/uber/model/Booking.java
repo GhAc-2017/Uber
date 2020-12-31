@@ -5,10 +5,7 @@ import com.actech.uber.exception.InvalidOTPException;
 import lombok.*;
 
 import javax.persistence.*;
-import java.util.Date;
-import java.util.List;
-
-import static com.actech.uber.model.constants.RIDE_START_OTP_EXPIRY_MINUTES;
+import java.util.*;
 
 @Entity
 @Getter
@@ -26,6 +23,9 @@ public class Booking extends Auditable{
 
     @ManyToOne
     private Driver driver;
+
+    @ManyToMany(cascade = CascadeType.PERSIST)
+    private Set<Driver> notifiedDrivers = new HashSet<>();
 
     private BookingType bookingType;
 
@@ -50,22 +50,38 @@ public class Booking extends Auditable{
     @OrderColumn(name = "location_index")
     private List<ExactLocation> route;
 
+    @OneToMany(cascade = CascadeType.ALL)
+    @JoinTable(
+            name = "booking_completed_route",
+            joinColumns = @JoinColumn(name = "booking_id"),
+            inverseJoinColumns = @JoinColumn(name = "exact_location_id"),
+            indexes = {@Index(columnList = "booking_id")}
+    )
+    @OrderColumn(name = "location_index")
+    private List<ExactLocation> completedRoute = new ArrayList<>();
+
+    @Temporal(value = TemporalType.TIMESTAMP)
+    private Date scheduledTime;
+
     @Temporal(value = TemporalType.TIMESTAMP)
     private Date startTime;
 
     @Temporal(value = TemporalType.TIMESTAMP)
     private Date endTime;
 
+    @Temporal(value = TemporalType.TIMESTAMP)
+    private Date expectedCompletionTime;
+
     private Long totalDistanceinMeters;
 
     @OneToOne
-    private OTP rideStartOtp;
+    private OTP rideStartOTP;
 
-    public void startRide(OTP otp){
+    public void startRide(OTP otp, int rideStartOTPExpiryMinutes){
         if(!bookingStatus.equals(BookingStatus.CAB_ARRIVED))
             throw new InvalidActionForBookingStateException("Cannot start the ride before the driver has reached the location");
 
-        if(!rideStartOtp.validateOTP(otp, RIDE_START_OTP_EXPIRY_MINUTES))
+        if(!rideStartOTP.validateOTP(otp, rideStartOTPExpiryMinutes))
             throw new InvalidOTPException();
 
         bookingStatus = BookingStatus.IN_RIDE;
@@ -73,7 +89,35 @@ public class Booking extends Auditable{
 
     public void endRide() {
         if(!bookingStatus.equals(BookingStatus.IN_RIDE))
-            throw new InvalidActionForBookingStateException("The ride hasent started yet");
+            throw new InvalidActionForBookingStateException("The ride hasen't started yet");
         bookingStatus = BookingStatus.COMPLETED;
+    }
+
+    public boolean canChangeRoute() {
+        return bookingStatus.equals(BookingStatus.ASSIGNING_DRIVER)
+                || bookingStatus.equals(BookingStatus.CAB_ARRIVED)
+                || bookingStatus.equals(BookingStatus.IN_RIDE)
+                || bookingStatus.equals(BookingStatus.SCHEDULED)
+                || bookingStatus.equals(BookingStatus.REACHING_PICKUP_LOCATION);
+    }
+
+    public boolean needsDriver() {
+        return bookingStatus.equals(BookingStatus.ASSIGNING_DRIVER);
+    }
+
+    public ExactLocation getPickupLocation() {
+        return route.get(0);
+    }
+
+    public void cancel() {
+        if (!(bookingStatus.equals(BookingStatus.REACHING_PICKUP_LOCATION)
+                || bookingStatus.equals(BookingStatus.ASSIGNING_DRIVER)
+                || bookingStatus.equals(BookingStatus.SCHEDULED)
+                || bookingStatus.equals(BookingStatus.CAB_ARRIVED))) {
+            throw new InvalidActionForBookingStateException("Cannot cancel the booking now.");
+        }
+        bookingStatus = BookingStatus.CANCELLED;
+        driver = null;
+        notifiedDrivers.clear();
     }
 }
