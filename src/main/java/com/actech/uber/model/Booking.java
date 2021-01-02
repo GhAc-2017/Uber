@@ -17,7 +17,7 @@ import java.util.*;
         @Index(columnList = "passenger_id"),
         @Index(columnList = "driver_id")
 })
-public class Booking extends Auditable{
+public class Booking extends Auditable {
     @ManyToOne
     private Passenger passenger;
 
@@ -36,7 +36,7 @@ public class Booking extends Auditable{
     private Review reviewByDriver;
 
     @OneToOne
-    private PaymentReceipt paymentReceipt;
+    private PaymentReceipt paymentReceipt; // todo: add payment services
 
     private BookingStatus bookingStatus;
 
@@ -49,6 +49,8 @@ public class Booking extends Auditable{
     )
     @OrderColumn(name = "location_index")
     private List<ExactLocation> route;
+    // every booking has a list of locations (route)
+    // one to many mapping
 
     @OneToMany(cascade = CascadeType.ALL)
     @JoinTable(
@@ -70,25 +72,28 @@ public class Booking extends Auditable{
     private Date endTime;
 
     @Temporal(value = TemporalType.TIMESTAMP)
-    private Date expectedCompletionTime;
+    private Date expectedCompletionTime; // filled by the location Tracking service
 
-    private Long totalDistanceinMeters;
+    private Long totalDistanceinMeters; // also be tracked by the location tracking service
 
     @OneToOne
-    private OTP rideStartOTP;
+    private OTP rideStartOTP;  // a cron job deleted otps of completed rides
 
-    public void startRide(OTP otp, int rideStartOTPExpiryMinutes){
-        if(!bookingStatus.equals(BookingStatus.CAB_ARRIVED))
+    public void startRide(OTP otp, int rideStartOTPExpiryMinutes) {
+        if (!bookingStatus.equals(BookingStatus.CAB_ARRIVED))
             throw new InvalidActionForBookingStateException("Cannot start the ride before the driver has reached the location");
 
-        if(!rideStartOTP.validateOTP(otp, rideStartOTPExpiryMinutes))
+        if (!rideStartOTP.validateOTP(otp, rideStartOTPExpiryMinutes))
             throw new InvalidOTPException();
+
+        startTime = new Date();
+        passenger.setActiveBooking(this);
 
         bookingStatus = BookingStatus.IN_RIDE;
     }
 
     public void endRide() {
-        if(!bookingStatus.equals(BookingStatus.IN_RIDE))
+        if (!bookingStatus.equals(BookingStatus.IN_RIDE))
             throw new InvalidActionForBookingStateException("The ride hasen't started yet");
         bookingStatus = BookingStatus.COMPLETED;
     }

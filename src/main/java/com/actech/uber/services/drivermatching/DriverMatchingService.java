@@ -7,6 +7,9 @@ import com.actech.uber.repositories.BookingRepository;
 import com.actech.uber.services.Constants;
 import com.actech.uber.services.ETAService;
 import com.actech.uber.services.LocationTrackingService;
+import com.actech.uber.services.drivermatching.filters.DriverFilter;
+import com.actech.uber.services.drivermatching.filters.ETABasedFilter;
+import com.actech.uber.services.drivermatching.filters.GenderFilter;
 import com.actech.uber.services.messagequeue.MQMessage;
 import com.actech.uber.services.messagequeue.MessageQueue;
 import com.actech.uber.services.notifications.NotificationService;
@@ -16,6 +19,7 @@ import lombok.Setter;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -26,6 +30,20 @@ public class DriverMatchingService {
     final NotificationService notificationService;
     final BookingRepository bookingRepository;
     final ETAService etaService;
+
+    List<DriverFilter> driverFilters = new ArrayList<>();
+
+    public DriverMatchingService(MessageQueue messageQueue, Constants constants, LocationTrackingService locationTrackingService, NotificationService notificationService, BookingRepository bookingRepository, ETAService etaService) {
+        this.messageQueue = messageQueue;
+        this.constants = constants;
+        this.locationTrackingService = locationTrackingService;
+        this.notificationService = notificationService;
+        this.bookingRepository = bookingRepository;
+        this.etaService = etaService;
+
+        driverFilters.add(new ETABasedFilter(this.etaService, constants));
+        driverFilters.add(new GenderFilter(constants));
+    }
 
     @Scheduled(fixedRate = 1000)
     public void consumer() {
@@ -47,6 +65,7 @@ public class DriverMatchingService {
         notificationService.notify(booking.getPassenger().getPhoneNumber(), String.format("Contacting %s cabs around you", drivers.size()));
         // todo: Chain of Responsibility pattern
         // filter the drivers somehow
+        drivers = filterDrivers(drivers, booking);
 
         if(drivers.size()==0){
             notificationService.notify(booking.getPassenger().getPhoneNumber(), "No cabs near you");
@@ -59,6 +78,14 @@ public class DriverMatchingService {
         bookingRepository.save(booking);
     }
 
+    private List<Driver> filterDrivers(List<Driver> drivers, Booking booking) {
+        // todo: Chain of Responsibility pattern
+        for (DriverFilter filter : driverFilters) {
+            drivers = filter.apply(drivers, booking);
+        }
+        return drivers;
+    }
+
 
     @Getter
     @Setter
@@ -68,7 +95,7 @@ public class DriverMatchingService {
 
         @Override
         public String toString() {
-            return String.format("Need to find drivers for %s", booking.toString();
+            return String.format("Need to find drivers for %s", booking.toString());
         }
     }
 }

@@ -12,7 +12,7 @@ import java.util.Map;
 public class Constants {
     final DBConstantRepository dbConstantRepository;
 
-//    private static final Integer LOAD_DELAY_TIME = 60*10*1000;
+    //    private static final Integer LOAD_DELAY_TIME = 60*10*1000;
     private static final Integer TEN_MINUTES = 60 * 10 * 1000;
     private final Map<String, String> constants = new HashMap<>();
 
@@ -21,14 +21,14 @@ public class Constants {
         loadConstantsFromDB();
     }
 
-    @Scheduled(fixedRate = 60*10)
+    @Scheduled(fixedRate = 60 * 10)
     private void loadConstantsFromDB() {
         dbConstantRepository.findAll().forEach(dbconstant -> {
             constants.put(dbconstant.getName(), dbconstant.getValue());
         });
     }
 
-    public Integer getRideStartOTPExpiryMinutes(){
+    public Integer getRideStartOTPExpiryMinutes() {
         return Integer.parseInt(constants.getOrDefault("rideStartOTPExpiryMinutes", "3610000"));
     }
 
@@ -46,5 +46,33 @@ public class Constants {
 
     public Integer getBookingProcessBeforeTime() {
         return Integer.parseInt(constants.getOrDefault("bookingProcessBeforeTime", "900000"));
+    }
+
+    public String getLocationTrackingTopicName() {
+        return constants.getOrDefault("locationTrackingTopicName", "locationTrackingTopic");
+    }
+
+    public double getMaxDistanceKmForDriverMatching() {
+        return Double.parseDouble(constants.getOrDefault("maxDistanceKmForDriverMatching", "2"));
+    }
+
+    public int getMaxDriverETAMinutes() {
+        return Integer.parseInt(constants.getOrDefault("maxDriverETAMinutes", "15"));
+    }
+
+    public boolean getIsETABasedFilterEnabled() {
+        return Boolean.parseBoolean(constants.getOrDefault("isETABasedFilterEnabled", "true"));
+    }
+
+    public boolean getIsGenderFilterEnabled() {
+        return Boolean.parseBoolean(constants.getOrDefault("isGenderFilterEnabled", "true"));
+    }
+
+    public double getDefaultETASpeedKmph() {
+        return Double.parseDouble(constants.getOrDefault("defaultETASpeedKmph", "30.0"));
+    }
+
+    public boolean getIsVIPBasedFilterEnabled() {
+        return Boolean.parseBoolean(constants.getOrDefault("isVIPBasedFilterEnabled", "false"));
     }
 }

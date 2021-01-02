@@ -28,6 +28,9 @@ public class Passenger extends Auditable{
     @OneToMany(mappedBy = "passenger")
     private List<Booking> bookings = new ArrayList<>();
 
+    @OneToOne
+    private Booking activeBooking = null;
+
     @Temporal(value = TemporalType.DATE)
     private Date dob;
 
@@ -39,4 +42,8 @@ public class Passenger extends Auditable{
     private ExactLocation work;
     @OneToOne
     private ExactLocation lastKnownLocation;
+
+    @OneToOne
+    private Review avgRating;
+    // this is updated by a cron job that runs nightly
 }
